@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Inventario Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="glass-panel" style="max-width: 400px;">
+
+
+        <h2>Acceso Seguro</h2>
+        <label>
+            Correo Electronico
+        </label>
+        <input type="text" id="correoInput" placeholder="tu@correo.com">
+        <label>
+            Contraseña
+        </label>
+        <input type="password" id="passwordInput" placeholder="••••••••">
+
+        <button onclick="iniciarSesion()" style="margin-top: 10px;"> Entrar al Sistema</button>
+        <p id="mensaje" style="margin-top: 15px; text-align: center; font-size: 0.9rem;"></p>
+    </div>
+    <!-- <br><br>
+    <button onclick="probarSalidaFIFO()">2. Probar Lógica de Salidas FIFO</button>
+    <button onclick="verHistorial()">3. Ver Historial de Salidas</button>
+    <button onclick="recibirViaje()">4. Marcar Viaje 1 como recibido</button> -->
+    <!-- <pre id="pantallaHistorial" style="background: #eee; padding: 10px; min-height: 50px;"></pre> -->
+
+    <script>
+        // Aquí guardaremos el gafete para usarlo después
+        let miGafeteVIP = "";
+
+        async function iniciarSesion() {
+            const correo = document.getElementById('correoInput').value;
+            const password = document.getElementById('passwordInput').value;
+            const msj = document.getElementById('mensaje');
+
+            msj.style.color = "var(--text-muted)";
+            msj.innerText = "Conectando al servidor...";
+
+            const respuesta = await fetch('http://localhost:3000/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ correo, password })
+            });
+
+            const datos = await respuesta.json();
+
+            if (respuesta.ok) {
+                msj.style.color = "var(--success)";
+                msj.innerText = datos.mensaje + ", " + datos.usuario + ". Abriendo el Dashboard...";
+                localStorage.setItem('miGafeteVIP', datos.token);
+                localStorage.setItem('nombreUsuario', datos.usuario);
+                localStorage.setItem('rolUsuario', datos.rol);
+                setTimeout(() => window.location.href = 'dashboard.html', 1500);
+            } else {
+                msj.style.color = "var(--danger)";
+                msj.innerText = "Error: " + datos.error;
+            }
+        }
+
+        async function probarSalidaFIFO() {
+            if (miGafeteVIP === "") {
+                alert("Primero debes Entrar al Sistema para obtener tu gafete.");
+                return;
+            }
+
+
+            const respuesta = await fetch('http://localhost:3000/api/salidas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': miGafeteVIP
+                },
+                body: JSON.stringify({
+                    sucursal_id: 1,
+                    productos: [{ id: 1, cantidad: 5 }]
+                })
+            });
+
+            const datos = await respuesta.json();
+
+            if (respuesta.ok) {
+                alert(datos.mensaje + "\nCosto total del viaje: L " + datos.costo_total);
+            } else {
+                alert("Bloqueado por el sistema: " + datos.error);
+            }
+        }
+        async function verHistorial() {
+            if (miGafeteVIP === "") return alert("Primero debes Entrar al Sistema");
+            const respuesta = await fetch('http://localhost:3000/api/salidas/historial', {
+                method: 'GET',
+                headers: {
+                    'Authorization': miGafeteVIP
+                }
+            });
+            const datos = await respuesta.json();
+
+            document.getElementById('pantallaHistorial').innerText = JSON.stringify(datos, null, 2);
+
+        }
+
+        async function recibirViaje() {
+            if (miGafeteVIP === "") return alert("Primero debes Entrar al Sistema.");
+
+            const respuesta = await fetch('http://localhost:3000/api/salidas/1/recibir', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': miGafeteVIP
+                }
+            });
+            const datos = await respuesta.json();
+            if (respuesta.ok) {
+                alert("Éxito!" + datos.mensaje);
+
+            } else {
+                alert("Error: " + datos.error);
+            }
+        }
+    </script>
+</body>
+
+</html>

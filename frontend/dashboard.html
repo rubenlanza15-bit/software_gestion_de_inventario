@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Inventario</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="glass-panel" style="max-width: 1200px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 id="tituloPanel">Panel de Inventario</h2>
+            <h4 style="color: var(--primary);">👤 <span id="etiquetaUsuario"></span></h4>
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 
+        1px solid rgba(255, 255, 255, 0.1); padding-bottom: 15px;">
+            <button id="btnCrearSalida" onclick="mostrarPestaña('crear')"
+                style="background: transparent; border: 1px solid white;">Crear
+                Salida</button>
+            <button onclick="mostrarPestaña('historial')" style="background: transparent; border: 1px solid white;">Ver
+                Historial</button>
+            <button onclick="cerrarSesion()" style="background: var(--danger); margin-left: auto;">Salir del
+                Sistema</button>
+
+        </div>
+
+        <div id="tab-crear">
+            <div class="fila-formulario">
+                <div style="flex: 1;">
+                    <label>Sucursal Destino</label>
+                    <select id="sucursalSelect">
+                        <option value="1">Sucursal Central (ID 1)</option>
+                        <option value="2">Sucursal Norte (ID 2)</option>
+                    </select>
+                </div>
+                <div style="flex: 1">
+                    <label>Producto</label>
+                    <select id="productoSelect">
+                        <option>Cargando productos...</option>
+                    </select>
+                </div>
+                <div style="width: 100px;">
+                    <label>
+                        Cantidad
+                    </label>
+                    <input type="number" id="cantidadInput" value="1" min="1">
+                </div>
+                <button onclick="agregarAlgrid()" style="margin-top: 10px;">Agregar</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID Prod</th>
+                        <th>Nombre</th>
+                        <th>Cantidad</th>
+                        <th>Lote #</th>
+                        <th>Costo Unit.</th>
+                        <th>Fecha Venc.</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoGrid">
+                </tbody>
+            </table>
+            <h3 style="text-align: right; margin-top: 15px; color: var(--success);">Costo Total Agregado: L <span
+                    id="etiquetaTotal">0</span></h3>
+            <button class="success" onclick="procesarSalida()" style="margin-top: 20px;">Procesar Salida</button>
+        </div>
+        <div id="tab-historial" style="display: none;">
+            <div
+                style="display: flex; gap: 10px; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+                <div style="flex: 1;">
+                    <label style="color: var(--text-muted); font-size: 0.8rem;">Sucursal</label>
+                    <select id="filtroSucursal" style="margin:0; padding: 0.5rem;">
+                        <option value="todas">Todas</option>
+                        <option value="1">Sucursal Central (ID 1)</option>
+                        <option value="2">Sucursal Norte (ID 2)</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label style="color: var(--text-muted); font-size: 0.8rem;">Desde</label>
+                    <input type="date" id="filtroInicio" style="margin:0; padding: 0.5rem;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="color: var(--text-muted); font-size: 0.8rem;">Hasta</label>
+                    <input type="date" id="filtroFin" style="margin:0; padding: 0.5rem;">
+                </div>
+                <button onclick="cargarHistorial()" style="margin-top: auto; padding: 0.5rem 1rem;">Filtrar</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Viaje #</th>
+                        <th>Fecha Viaje</th>
+                        <th>Productos</th>
+                        <th>Cajas Totales</th>
+                        <th>Costo Total</th>
+                        <th>Estado</th>
+                        <th>Sucursal</th>
+                        <th>Enviado Por</th>
+                        <th>Recibido Por</th>
+                        <th>Fecha Recibido</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoHistorial"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const miGafeteVIP = localStorage.getItem('miGafeteVIP');
+        const nombreDelUsuario = localStorage.getItem('nombreUsuario') || 'Usuario';
+        const rolUsuario = localStorage.getItem('rolUsuario') || 'Jefe de Bodega';
+
+        if (!miGafeteVIP) { window.location.href = "login.html"; }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('etiquetaUsuario').innerText = 'Hola, ' + nombreDelUsuario;
+            document.getElementById('tituloPanel').innerText = 'Panel de ' + rolUsuario;
+
+            cargarSelectores();
+        });
+
+        async function cargarSelectores() {
+            try {
+                const respuesta = await fetch('http://localhost:3000/api/productos', {
+                    headers: { 'Authorization': miGafeteVIP }
+                });
+                if (respuesta.ok) {
+                    const productos = await respuesta.json();
+                    const select = document.getElementById('productoSelect');
+                    select.innerHTML = '';
+                    productos.forEach(prod => {
+                        select.innerHTML += `<option value="${prod.id}">${prod.nombre} (ID ${prod.id})</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error("Error cargando productos", error);
+            }
+        }
+
+        let carrito = [];
+        let simulacionFIFO = [];
+        let costoTotalSimulado = 0;
+
+        function mostrarPestaña(nombre) {
+            document.getElementById('tab-crear').style.display = nombre === 'crear' ? 'block' : 'none';
+            document.getElementById('tab-historial').style.display = nombre === 'historial' ? 'block' : 'none';
+            if (nombre === 'historial') cargarHistorial();
+        }
+        function cerrarSesion() {
+            localStorage.removeItem('miGafeteVIP');
+            window.location.href = "login.html";
+        }
+
+        async function agregarAlgrid() {
+            const prodSelect = document.getElementById('productoSelect');
+            const id = parseInt(prodSelect.value);
+            const nombre = prodSelect.options[prodSelect.selectedIndex].text;
+            const cantidad = parseInt(document.getElementById('cantidadInput').value);
+
+            const index = carrito.findIndex(p => p.id === id);
+            if (index >= 0) {
+                carrito[index].cantidad += cantidad;
+            } else {
+                carrito.push({ id, nombre, cantidad });
+            }
+
+            await actualizarSimulacion();
+        }
+
+        async function quitarDelGrid(idProducto) {
+            carrito = carrito.filter(p => p.id !== idProducto);
+            if (carrito.length > 0) {
+                await actualizarSimulacion();
+            } else {
+                simulacionFIFO = [];
+                costoTotalSimulado = 0;
+                dibujarGrid();
+            }
+        }
+
+        async function actualizarSimulacion() {
+            const respuesta = await fetch('http://localhost:3000/api/salidas/simular', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': miGafeteVIP },
+                body: JSON.stringify({ productos: carrito })
+            });
+            const datos = await respuesta.json();
+
+            if (respuesta.ok) {
+                simulacionFIFO = datos.grid;
+                costoTotalSimulado = datos.costo_total;
+                dibujarGrid();
+            } else {
+                alert("Error: " + datos.error);
+                carrito.pop();
+            }
+        }
+
+        function dibujarGrid() {
+            const tbody = document.getElementById('cuerpoGrid');
+            tbody.innerHTML = '';
+            simulacionFIFO.forEach((item) => {
+                tbody.innerHTML += ` 
+                <tr>
+                        <td>${item.producto_id}</td>
+                        <td>${item.nombre}</td>
+                        <td>${item.cantidad}</td>
+                        <td>Lote ${item.lote_id}</td>
+                        <td>L ${item.costo_unitario}</td>
+                        <td>${new Date(item.fecha_vencimiento).toLocaleDateString()}</td>
+                        <td><button style="background: var(--danger); padding: 5px 10px;" onclick="quitarDelGrid(${item.producto_id})">Quitar Todo</button></td>
+                    </tr>
+                    `;
+            });
+            document.getElementById('etiquetaTotal').innerText = costoTotalSimulado;
+        }
+
+        async function procesarSalida() {
+            if (carrito.length === 0) return alert("El grid está vacío");
+            const sucursal_id = parseInt(document.getElementById('sucursalSelect').value);
+            const productosParaBackend = carrito.map(item => ({ id: item.id, cantidad: item.cantidad }));
+            const respuesta = await fetch('http://localhost:3000/api/salidas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': miGafeteVIP
+                },
+                body: JSON.stringify({ sucursal_id: sucursal_id, productos: productosParaBackend })
+            });
+            const datos = await respuesta.json();
+            if (respuesta.ok) {
+                alert("¡Éxito! " + datos.mensaje + "\nCosto final del viaje: L " + datos.costo_total);
+                carrito = [];
+                simulacionFIFO = [];
+                costoTotalSimulado = 0;
+                dibujarGrid();
+            } else {
+                alert("Error: " + datos.error);
+            }
+        }
+        async function cargarHistorial() {
+            const sucursal = document.getElementById('filtroSucursal') ? document.getElementById('filtroSucursal').value : 'todas';
+            const inicio = document.getElementById('filtroInicio') ? document.getElementById('filtroInicio').value : '';
+            const fin = document.getElementById('filtroFin') ? document.getElementById('filtroFin').value : '';
+
+            let url = `http://localhost:3000/api/salidas/historial?sucursal_id=${sucursal}`;
+            if (inicio) url += `&fecha_inicio=${inicio}`;
+            if (fin) url += `&fecha_fin=${fin}`;
+
+            const respuesta = await fetch(url, {
+                headers: { 'Authorization': miGafeteVIP }
+            });
+            const datos = await respuesta.json();
+            const tbody = document.getElementById('cuerpoHistorial');
+            tbody.innerHTML = '';
+
+
+            if (datos.error) {
+                alert("Error del servidor: " + JSON.stringify(datos));
+                return;
+            }
+
+            if (datos.salidas) {
+                datos.salidas.forEach(salida => {
+                    let botonRecibir = '';
+                    if (salida.estado === 'Enviada a sucursal') {
+                        botonRecibir = `<button class="success" style="padding: 5px 10px; font-size: 0.8rem;" onclick="recibirViajeDesdeTabla(${salida.id})">Recibir</button>`;
+                    }
+
+                    let totalUnidades = 0;
+                    let listaProductos = [];
+                    if (salida.detalles_salida) {
+                        salida.detalles_salida.forEach(det => {
+                            totalUnidades += det.cantidad;
+                            if (det.productos && det.productos.nombre) {
+                                if (!listaProductos.includes(det.productos.nombre)) {
+                                    listaProductos.push(det.productos.nombre);
+                                }
+                            }
+                        });
+                    }
+                    const textoProductos = listaProductos.length > 0 ? listaProductos.join(', ') : 'Desconocido';
+
+                    const fechaViaje = new Date(salida.fecha_envio).toLocaleDateString();
+                    const fechaRecibo = salida.fecha_recibido ? new Date(salida.fecha_recibido).toLocaleString() : '-';
+                    const recibidoPor = salida.usuarios_recibe ? salida.usuarios_recibe.nombre : '-';
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${salida.id}</td>
+                            <td>${fechaViaje}</td>
+                            <td>${textoProductos}</td>
+                            <td>${totalUnidades}</td>
+                            <td>L ${salida.costo_total}</td>
+                            <td>${salida.estado}</td>
+                            <td>${salida.sucursales ? salida.sucursales.nombre : 'Desconocida'}</td>
+                            <td>${salida.usuarios ? salida.usuarios.nombre : 'Desconocido'}</td>
+                            <td>${recibidoPor}</td>
+                            <td>${fechaRecibo}</td>
+                            <td>${botonRecibir}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        async function recibirViajeDesdeTabla(idViaje) {
+            const respuesta = await fetch('http://localhost:3000/api/salidas/' + idViaje + '/recibir', {
+                method: 'PUT',
+                headers: { 'Authorization': miGafeteVIP }
+            });
+
+            if (respuesta.ok) {
+                alert("¡Viaje marcado como recibido en la sucursal!");
+                cargarHistorial();
+            } else {
+                alert("Error al recibir el viaje, solo el Jefe de Bodega puede hacer esto");
+            }
+        }
+
+    </script>
+
+</body>
+
+</html>

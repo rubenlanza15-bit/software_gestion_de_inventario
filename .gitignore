@@ -1,0 +1,15 @@
+# Dependencias de Node (no se suben porque pesan demasiado y se instalan con npm install)
+node_modules/
+
+# Variables de entorno (no se suben por seguridad)
+.env
+.env.*
+!.env.example
+
+# Archivos del sistema operativo
+.DS_Store
+
+# Logs de errores
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
