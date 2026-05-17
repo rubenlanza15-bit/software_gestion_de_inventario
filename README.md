@@ -52,4 +52,4 @@ Puede utilizar las siguientes credenciales de prueba para el rol de **Vendedor**
 - **Contraseña:** 1234.
 
 ---
-*Desarrollado como prueba técnica de ingeniería de software.*
+*Desarrollado como prueba técnica*
