@@ -133,7 +133,7 @@
                     const select = document.getElementById('productoSelect');
                     select.innerHTML = '';
                     productos.forEach(prod => {
-                        select.innerHTML += `<option value="${prod.id}">${prod.nombre} (ID ${prod.id})</option>`;
+                        select.innerHTML += `<option value="${prod.producto_id}">${prod.producto_nombre} (ID ${prod.producto_id})</option>`;
                     });
                 }
             } catch (error) {
