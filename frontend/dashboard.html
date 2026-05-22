@@ -20,6 +20,8 @@
                 Salida</button>
             <button onclick="mostrarPestaña('historial')" style="background: transparent; border: 1px solid white;">Ver
                 Historial</button>
+            <button id="btnIrNuevoProducto" onclick="window.location.href='nuevo-producto.html'"
+                style="display: none; background: var(--success); border: none;">➕ Registrar Medicamento</button>
             <button onclick="cerrarSesion()" style="background: var(--danger); margin-left: auto;">Salir del
                 Sistema</button>
 
@@ -119,6 +121,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('etiquetaUsuario').innerText = 'Hola, ' + nombreDelUsuario;
             document.getElementById('tituloPanel').innerText = 'Panel de ' + rolUsuario;
+
+            if (rolUsuario === 'Jefe de Bodega') {
+                document.getElementById('btnIrNuevoProducto').style.display = 'inline-block';
+            }
 
             cargarSelectores();
         });

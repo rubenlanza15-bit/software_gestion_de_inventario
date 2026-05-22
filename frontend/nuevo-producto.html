@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar Medicamento - Inventario</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            transition: 0.2s;
+        }
+
+        .switch-container:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .lote-section {
+            border-top: 1px dashed var(--border);
+            padding-top: 20px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .alert-box {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+            display: none;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="glass-panel" style="max-width: 650px;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+            <h2 style="margin: 0; border: none; padding: 0; text-align: left;">➕ Registrar Medicamento</h2>
+            <h4 style="color: var(--primary);">👤 <span id="etiquetaUsuario"></span></h4>
+        </div>
+
+
+        <div id="alertaExito" class="alert-box alert-success"></div>
+        <div id="alertaError" class="alert-box alert-danger"></div>
+
+        <form id="formularioProducto" onsubmit="guardarMedicamento(event)">
+
+            <label for="nombreInput">Nombre del Medicamento <span style="color: var(--danger);">*</span></label>
+            <input type="text" id="nombreInput" placeholder="Ej: Paracetamol 500mg" required autocomplete="off">
+
+            <label for="descripcionInput">Descripción / Presentación</label>
+            <input type="text" id="descripcionInput" placeholder="Ej: Caja de 100 pastillas" autocomplete="off">
+
+
+            <div class="switch-container" onclick="toggleLoteSection()">
+                <input type="checkbox" id="loteCheckbox" style="width: auto; margin: 0; pointer-events: none;">
+                <span style="font-weight: 600; font-size: 0.95rem;">📦 ¿Registrar lote con stock inicial ahora
+                    mismo?</span>
+            </div>
+
+
+            <div id="seccionLote" class="lote-section">
+                <h3 style="font-size: 1.1rem; margin-bottom: 15px; color: var(--text-muted);">Información del Lote
+                    Inicial</h3>
+
+                <div class="fila-formulario" style="margin-bottom: 1rem;">
+                    <div style="flex: 1;">
+                        <label for="cantidadInput">Cantidad Disponible <span
+                                style="color: var(--danger);">*</span></label>
+                        <input type="number" id="cantidadInput" min="1" placeholder="Ej: 100" style="margin-bottom: 0;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="costoInput">Costo Unitario (L) <span style="color: var(--danger);">*</span></label>
+                        <input type="number" step="0.01" id="costoInput" min="0.01" placeholder="Ej: 15.50"
+                            style="margin-bottom: 0;">
+                    </div>
+                </div>
+
+                <label for="vencimientoInput">Fecha de Vencimiento <span style="color: var(--danger);">*</span></label>
+                <input type="date" id="vencimientoInput" style="margin-bottom: 0;">
+            </div>
+
+
+            <div class="button-group">
+                <button type="button" class="btn-secondary" onclick="window.location.href='dashboard.html'">⬅️ Volver al
+                    Panel</button>
+                <button type="submit" style="flex: 1;">💾 Registrar Medicamento</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const miGafeteVIP = localStorage.getItem('miGafeteVIP');
+        const nombreDelUsuario = localStorage.getItem('nombreUsuario') || 'Usuario';
+        const rolUsuario = localStorage.getItem('rolUsuario') || 'Jefe de Bodega';
+
+
+        if (!miGafeteVIP) {
+            window.location.href = "login.html";
+        } else if (rolUsuario !== 'Jefe de Bodega') {
+            alert('Acceso denegado: Solo el Jefe de Bodega puede acceder a esta pantalla.');
+            window.location.href = "dashboard.html";
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('etiquetaUsuario').innerText = nombreDelUsuario;
+
+
+            const hoy = new Date();
+            hoy.setFullYear(hoy.getFullYear() + 1);
+            document.getElementById('vencimientoInput').value = hoy.toISOString().split('T')[0];
+        });
+
+        function toggleLoteSection() {
+            const checkbox = document.getElementById('loteCheckbox');
+            const seccion = document.getElementById('seccionLote');
+
+
+            checkbox.checked = !checkbox.checked;
+
+            if (checkbox.checked) {
+                seccion.style.display = 'block';
+                document.getElementById('cantidadInput').required = true;
+                document.getElementById('costoInput').required = true;
+                document.getElementById('vencimientoInput').required = true;
+            } else {
+                seccion.style.display = 'none';
+                document.getElementById('cantidadInput').required = false;
+                document.getElementById('costoInput').required = false;
+                document.getElementById('vencimientoInput').required = false;
+            }
+        }
+
+        async function guardarMedicamento(event) {
+            event.preventDefault();
+
+            const nombre = document.getElementById('nombreInput').value.trim();
+            const descripcion = document.getElementById('descripcionInput').value.trim();
+            const registrarLote = document.getElementById('loteCheckbox').checked;
+
+            const alertaExito = document.getElementById('alertaExito');
+            const alertaError = document.getElementById('alertaError');
+
+            alertaExito.style.display = 'none';
+            alertaError.style.display = 'none';
+
+            let payload = {
+                nombre: nombre,
+                descripcion: descripcion
+            };
+
+            if (registrarLote) {
+                const cantidad = parseInt(document.getElementById('cantidadInput').value);
+                const costo = parseFloat(document.getElementById('costoInput').value);
+                const vencimiento = document.getElementById('vencimientoInput').value;
+
+                if (!cantidad || !costo || !vencimiento) {
+                    alertaError.innerText = "Por favor, completa todos los campos del lote inicial.";
+                    alertaError.style.display = 'block';
+                    return;
+                }
+
+                payload.lote = {
+                    cantidad_disponible: cantidad,
+                    costo_unitario: costo,
+                    fecha_vencimiento: vencimiento
+                };
+            }
+
+            try {
+                const respuesta = await fetch('http://localhost:3000/api/productos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': miGafeteVIP
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const datos = await respuesta.json();
+
+                if (respuesta.ok) {
+                    alertaExito.innerText = `¡Éxito! ${datos.mensaje}`;
+                    alertaExito.style.display = 'block';
+
+
+                    document.getElementById('formularioProducto').reset();
+                    if (registrarLote) {
+                        toggleLoteSection();
+                    }
+
+
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    alertaError.innerText = `Error: ${datos.error}`;
+                    alertaError.style.display = 'block';
+                }
+            } catch (error) {
+                console.error("Error al registrar medicamento", error);
+                alertaError.innerText = "Error de red al intentar comunicarse con el servidor.";
+                alertaError.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+
+</html>
